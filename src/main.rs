@@ -1,24 +1,77 @@
-use regex::Regex;
-use std::collections::HashMap;
+use console::Style;
+use dialoguer::Confirm;
+use std::io;
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
+use std::{env, fs};
 
-/// A Precommit hook which throws an error if en emoji shortcode is misspelled
-fn main() {
-    let commit_msg_path = std::env::args().nth(1).expect("Commit not found");
-    let commit_msg = std::fs::read_to_string(commit_msg_path).unwrap();
-    let re: Regex = Regex::new(r#"(?::)(\S{1,})(?::)"#).unwrap();
-    for x in re
-        .captures_iter(&commit_msg)
-        .map(|x| x.get(1).unwrap().as_str())
-    {
-        if !is_valid_emoji_shortcode(x) {
-            eprintln!("Unknown emoji shortcode: {}", x);
-            std::process::exit(1);
+/// Add an emoji shortcode spell checker to your git repo
+fn main() -> io::Result<()> {
+    let mut hook_dir = env::current_dir()?;
+    let hook_name = Path::new("commit-msg");
+    hook_dir.push(Path::new(".git/hooks"));
+    if ask(&hook_dir, hook_name) {
+        let hook_path = hook_dir.join(hook_name);
+        generate_hook(&hook_path).unwrap();
+        println!("'commit-msg' added to .git/hooks");
+        match fs::set_permissions(&hook_path, PermissionsExt::from_mode(0o770)) {
+            Ok(()) => (),
+            Err(e) => {
+                eprintln!("{}", e);
+                println!(
+                    "Run 'chmod +x {}' to set the script as executable",
+                    hook_path.display()
+                )
+            }
         }
     }
+    Ok(())
 }
 
-fn is_valid_emoji_shortcode(text: &str) -> bool {
-    let bytes = include_bytes!("emojis.json");
-    let emojis: HashMap<String, String> = serde_json::from_slice(bytes).unwrap();
-    emojis.contains_key(text)
+/// Ask if a file can be written
+fn ask(dir: &Path, fname: &Path) -> bool {
+    let warn = Style::new().yellow().bold();
+    let error = Style::new().red().bold();
+    let dim = Style::new().dim();
+    let blue = Style::new().bright().blue();
+    if dir.join(fname).exists() {
+        println!(
+            "{} '{}' hook already exists!",
+            warn.apply_to("[WARNING]:"),
+            blue.apply_to(fname.display())
+        );
+        return Confirm::new()
+            .with_prompt(format!(
+                "Do you want to overwrite it? {}",
+                dim.apply_to("(irreversible)")
+            ))
+            .default(false)
+            .interact()
+            .unwrap_or_default();
+    }
+    // Check if parent folders exist
+    let parent = dir.parent().unwrap();
+    if !parent.exists() {
+        println!(
+            "{} '{}' not found!",
+            error.apply_to("[ERROR]:"),
+            parent.to_str().unwrap()
+        );
+        return false;
+    }
+    return Confirm::new()
+        .with_prompt(format!(
+            "Add '{}' script to '{}' ",
+            blue.apply_to(fname.display()),
+            blue.apply_to(".git/hooks"),
+        ))
+        .default(false)
+        .interact()
+        .unwrap_or_default();
+}
+
+/// Copy script into git hooks folder
+fn generate_hook(target: &PathBuf) -> io::Result<()> {
+    let script = include_bytes!("hooks/commit-msg.sh");
+    fs::write(target, script)
 }
