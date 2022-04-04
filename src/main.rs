@@ -102,10 +102,10 @@ fn add_git_hook(hook: GitHook, repo_root: &Path, style: &PromptStyle) -> io::Res
     let hook_dir = Path::new(".git/hooks");
     let hook_path = hook_dir.join(hook.as_path());
     let full_hook_path = repo_root.join(&hook_path);
-    if ask_file_write(&full_hook_path, hook_dir, style).unwrap() {
-        write_hook_script(&hook, &hook_path)?;
+    if ask_file_write(&full_hook_path, style).unwrap() {
+        write_hook_script(&hook, &full_hook_path)?;
         println!(
-            "'{}' added to {}",
+            "'{}' added to '{}'",
             style.path.apply_to(hook.as_str()),
             style.path.apply_to(hook_dir.to_str().unwrap()),
         );
@@ -113,12 +113,10 @@ fn add_git_hook(hook: GitHook, repo_root: &Path, style: &PromptStyle) -> io::Res
             Ok(()) => Ok(()),
             Err(e) => {
                 eprintln!("{}: {}", style.error.apply_to("[ERROR]:"), e);
-                println!(
-                    "Run `{}` to set the script as executable",
-                    style
-                        .code
-                        .apply_to(format!("chmod +x {}", hook_path.display()))
-                );
+                let cmd = style
+                    .code
+                    .apply_to(format!("chmod +x {}", hook_path.display()));
+                println!("Run `{}` to set the script as executable", cmd);
                 Ok(())
             }
         }
@@ -127,15 +125,17 @@ fn add_git_hook(hook: GitHook, repo_root: &Path, style: &PromptStyle) -> io::Res
     }
 }
 
-/// Ask if a file can be written
-fn ask_file_write(rel_path: &Path, base_dir: &Path, style: &PromptStyle) -> Option<bool> {
-    let target = base_dir.join(rel_path);
+/// Ask if a file can be written in a location
+///
+/// # Arguments
+/// * `target` Reference to Path slice to get permission to write to
+fn ask_file_write(target: &Path, style: &PromptStyle) -> Option<bool> {
     // Ask if a user wants to overrite exiting file
     if target.exists() {
         println!(
             "{} '{}' already exists!",
             style.warning.apply_to("[WARNING]:"),
-            style.path.apply_to(rel_path.display())
+            style.path.apply_to(target.display())
         );
         return Some(
             Confirm::new()
@@ -149,20 +149,21 @@ fn ask_file_write(rel_path: &Path, base_dir: &Path, style: &PromptStyle) -> Opti
         );
     }
     // Check if target directory exists
-    if !base_dir.exists() {
+    let target_dir = target.parent()?;
+    if !target_dir.exists() {
         println!(
             "{} '{}' not found!",
             style.error.apply_to("[ERROR]:"),
-            style.error.apply_to(base_dir.display())
+            style.path.apply_to(target_dir.display())
         );
         return Some(false);
     }
     return Some(
         Confirm::new()
             .with_prompt(format!(
-                "Write '{}' to '{}' ",
-                style.path.apply_to(rel_path.file_name()?.to_str()?),
-                style.path.apply_to(rel_path.parent()?.display()),
+                "Write '{}' to '{}'?",
+                style.path.apply_to(target.file_name()?.to_str()?),
+                style.path.apply_to(target.parent()?.display()),
             ))
             .default(false)
             .interact()
@@ -172,10 +173,9 @@ fn ask_file_write(rel_path: &Path, base_dir: &Path, style: &PromptStyle) -> Opti
 
 /// Copy script into git hooks folder
 fn write_hook_script(hook: &GitHook, target: &Path) -> io::Result<()> {
-    // FIXME doesn't match to script type
     let script: Result<&[u8], ()> = match hook {
         GitHook::CommitMsg => Ok(include_bytes!("hooks/commit-msg.sh")),
-        _ => unimplemented!()
+        _ => unimplemented!(),
     };
     fs::write(target, script.unwrap())
 }
