@@ -3,7 +3,7 @@ use console::{Emoji, Style};
 use dialoguer::Confirm;
 use std::io;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::{env, fs, str};
 
 /// A fictional versioning CLI
@@ -98,7 +98,7 @@ fn add_git_hook(hook: GitHook, repo_root: &Path, style: &PromptStyle) -> io::Res
     let hook_dir = Path::new(".git/hooks");
     let hook_path = hook_dir.join(hook.as_path());
     let full_hook_path = repo_root.join(&hook_path);
-    if ask_file_write(&full_hook_path, &hook_dir, &style).unwrap() {
+    if ask_file_write(&full_hook_path, hook_dir, style).unwrap() {
         write_hook_script(&hook_path)?;
         println!(
             "'{}' added to {}",
@@ -167,7 +167,7 @@ fn ask_file_write(rel_path: &Path, base_dir: &Path, style: &PromptStyle) -> Opti
 }
 
 /// Copy script into git hooks folder
-fn write_hook_script(target: &PathBuf) -> io::Result<()> {
+fn write_hook_script(target: &Path) -> io::Result<()> {
     // FIXME doesn't match to script type
     let script = include_bytes!("hooks/commit-msg.sh");
     fs::write(target, script)
