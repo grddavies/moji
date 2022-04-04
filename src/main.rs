@@ -95,11 +95,15 @@ fn check_is_git_repo(dir: &Path) -> bool {
 }
 
 fn add_git_hook(hook: GitHook, repo_root: &Path, style: &PromptStyle) -> io::Result<()> {
+    assert!(
+        matches!(hook, GitHook::CommitMsg),
+        "Only `commit-msg` hook is implemented!"
+    );
     let hook_dir = Path::new(".git/hooks");
     let hook_path = hook_dir.join(hook.as_path());
     let full_hook_path = repo_root.join(&hook_path);
     if ask_file_write(&full_hook_path, hook_dir, style).unwrap() {
-        write_hook_script(&hook_path)?;
+        write_hook_script(&hook, &hook_path)?;
         println!(
             "'{}' added to {}",
             style.path.apply_to(hook.as_str()),
@@ -167,8 +171,11 @@ fn ask_file_write(rel_path: &Path, base_dir: &Path, style: &PromptStyle) -> Opti
 }
 
 /// Copy script into git hooks folder
-fn write_hook_script(target: &Path) -> io::Result<()> {
+fn write_hook_script(hook: &GitHook, target: &Path) -> io::Result<()> {
     // FIXME doesn't match to script type
-    let script = include_bytes!("hooks/commit-msg.sh");
-    fs::write(target, script)
+    let script: Result<&[u8], ()> = match hook {
+        GitHook::CommitMsg => Ok(include_bytes!("hooks/commit-msg.sh")),
+        _ => unimplemented!()
+    };
+    fs::write(target, script.unwrap())
 }
