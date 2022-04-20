@@ -1,9 +1,9 @@
 use crate::PromptStyle;
 use clap::{ArgEnum, Parser};
+use dialoguer::Confirm;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
-use dialoguer::Confirm;
-use std::{env, io, fs};
+use std::{env, fs, io};
 
 #[derive(Debug, Parser)]
 pub struct HookCli {
@@ -58,14 +58,14 @@ fn add_git_hook(hook: GitHook, repo_root: &Path, style: &PromptStyle) -> io::Res
     if ask_file_write(&full_hook_path, style).unwrap() {
         write_hook_script(&hook, &full_hook_path)?;
         println!(
-            "'{}' added to '{}'",
+            "{} added to {}",
             style.path.apply_to(hook.as_str()),
             style.path.apply_to(hook_dir.to_str().unwrap()),
         );
         match fs::set_permissions(&hook_path, PermissionsExt::from_mode(0o770)) {
             Ok(()) => Ok(()),
             Err(e) => {
-                eprintln!("{}: {}", style.error.apply_to("[ERROR]:"), e);
+                eprintln!("{} {}", style.error.apply_to("[ERROR]:"), e);
                 let cmd = style
                     .code
                     .apply_to(format!("chmod +x {}", hook_path.display()));
@@ -86,7 +86,7 @@ fn ask_file_write(target: &Path, style: &PromptStyle) -> Option<bool> {
     // Ask if a user wants to overrite exiting file
     if target.exists() {
         println!(
-            "{} '{}' already exists!",
+            "{} {} already exists!",
             style.warning.apply_to("[WARNING]:"),
             style.path.apply_to(target.display())
         );
@@ -105,7 +105,7 @@ fn ask_file_write(target: &Path, style: &PromptStyle) -> Option<bool> {
     let target_dir = target.parent()?;
     if !target_dir.exists() {
         println!(
-            "{} '{}' not found!",
+            "{} {} not found!",
             style.error.apply_to("[ERROR]:"),
             style.path.apply_to(target_dir.display())
         );
@@ -114,7 +114,7 @@ fn ask_file_write(target: &Path, style: &PromptStyle) -> Option<bool> {
     return Some(
         Confirm::new()
             .with_prompt(format!(
-                "Write '{}' to '{}'?",
+                "Write {} to {}?",
                 style.path.apply_to(target.file_name()?.to_str()?),
                 style.path.apply_to(target.parent()?.display()),
             ))
