@@ -6,8 +6,7 @@ mod hook;
 use crate::hook::HookCli;
 
 #[derive(Debug, Parser)]
-#[clap(name = "moji")]
-#[clap(about = "Emoji toolkit for developers")]
+#[clap(name = "moji", version, about = "Emoji toolkit for developers")]
 struct Cli {
     #[clap(subcommand)]
     command: Option<Command>,
