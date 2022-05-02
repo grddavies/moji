@@ -65,11 +65,15 @@ fn add_git_hook(hook: GitHook, repo_root: &Path, style: &PromptStyle) -> io::Res
         match fs::set_permissions(&hook_path, PermissionsExt::from_mode(0o770)) {
             Ok(()) => Ok(()),
             Err(e) => {
-                eprintln!("{} {}", style.error.apply_to("[ERROR]:"), e);
+                eprintln!("{} {}", style.error.apply_to("[ERROR]: "), e);
                 let cmd = style
                     .code
                     .apply_to(format!("chmod +x {}", hook_path.display()));
-                println!("Run `{}` to set the script as executable", cmd);
+                println!(
+                    "{}Run `{}` to set the script as executable",
+                    style.info.apply_to("[INFO]: "),
+                    cmd
+                );
                 Ok(())
             }
         }
@@ -87,7 +91,7 @@ fn ask_file_write(target: &Path, style: &PromptStyle) -> Option<bool> {
     if target.exists() {
         println!(
             "{} {} already exists!",
-            style.warning.apply_to("[WARNING]:"),
+            style.warning.apply_to("[WARNING]: "),
             style.path.apply_to(target.display())
         );
         return Some(
@@ -106,7 +110,7 @@ fn ask_file_write(target: &Path, style: &PromptStyle) -> Option<bool> {
     if !target_dir.exists() {
         println!(
             "{} {} not found!",
-            style.error.apply_to("[ERROR]:"),
+            style.error.apply_to("[ERROR]: "),
             style.path.apply_to(target_dir.display())
         );
         return Some(false);
