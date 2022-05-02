@@ -27,6 +27,6 @@ fn main() {
     let style = PromptStyle::new();
     match args.command {
         Some(Command::Hook(hook_cli)) => hook::try_add_git_hook(hook_cli.hook, style),
-        None => search::interactive(style),
+        None => search::main(style),
     };
 }
